@@ -1,0 +1,6 @@
+Potions:
+    CrossMine:
+      price: 10
+      max: 2
+      event_map:
+        BlockBreakEvent: "LOWEST"
