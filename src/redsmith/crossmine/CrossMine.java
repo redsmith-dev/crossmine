@@ -121,7 +121,7 @@ public class CrossMine extends PotionHandler {
 						process(player, block, enchantment);
 					}
 				} else {
-					console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - activation_chance expression did not result in a valid value! ("+ChatColor.RED + activationChance + ChatColor.DARK_RED+")");
+					console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - activation_chance function did not return a valid value! ("+ChatColor.RED + activationChance + ChatColor.DARK_RED+")");
 					return;
 				}
 			}
@@ -141,13 +141,13 @@ public class CrossMine extends PotionHandler {
 				size = (int)result;
 			}
 		} catch (Exception e) {
-			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Parsing of the cross_size expression failed!");
+			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Failed while invoking cross_size function!");
 			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Exception: "+ChatColor.RED + e.toString());
 			return;
 		}
 		
 		if (size < 0) {
-			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - cross_size expression did not result in a valid value! ("+ChatColor.RED + size + ChatColor.DARK_RED+")");
+			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - cross_size function did not return a valid value! ("+ChatColor.RED + size + ChatColor.DARK_RED+")");
 			return;
 		}
 		
