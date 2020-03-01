@@ -2,5 +2,14 @@ Potions:
     CrossMine:
       price: 10
       max: 2
+# cross_size and activation_chance expressions will be evaluated by a JavaScript engine and must result in a number.
+# Available placeholders are:
+#   ${level} - Level of the enchantment on the used tool.
+#   ${max_level} - Max level for this enchantment.
+#
+# Example of cross size equal to level. (Required non negative integer result)
+      cross_size: "${level}"
+# Example of activation chance linearly dependent on level up to a max of 10%. (Required non negative result from 0 to 1, inclusive)
+      activation_chance: "(${level} / ${max_level}) * 0.1"
       event_map:
         BlockBreakEvent: "LOWEST"

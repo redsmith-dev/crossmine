@@ -2,8 +2,11 @@ package redsmith.crossmine;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.Random;
 import java.util.function.Consumer;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -42,19 +45,24 @@ public class CrossMine extends PotionHandler {
 			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Failed to get instance of WorldGuard! ("+ChatColor.RED + e.toString() + ChatColor.DARK_RED+")");
 		}
 
-		
 		checkConfig();
+		loadConfigValues();
 	}
 	
 	
+	Random random = new Random();
 	ConsoleCommandSender console = Bukkit.getConsoleSender();
 	WorldGuardPlugin worldguard;
 	RegionContainer container;
 	
+    ScriptEngineManager mgr = new ScriptEngineManager();
+    ScriptEngine engine = mgr.getEngineByName("JavaScript");
+    String baseSizeExpression, baseActivationExpression;
 	
-	File configFile = new File("plugins"+File.separator+"TokenEnchant"+File.separator+"enchants"+File.separator+"CrossMine_config.yml");
+    
+    File configFile = new File("plugins"+File.separator+"TokenEnchant"+File.separator+"enchants"+File.separator+"CrossMine_config.yml");
 	
-	void checkConfig() {
+	private void checkConfig() {
 		if (!configFile.exists()) {
 			try {
 				Files.copy(getClass().getResourceAsStream("config.yml"), configFile.toPath());
@@ -64,8 +72,12 @@ public class CrossMine extends PotionHandler {
 				console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Failed to write default config file! ("+ChatColor.RED + e.toString() + ChatColor.DARK_RED+")");
 			}
 		}
-		
 	}
+	private void loadConfigValues() {
+		baseSizeExpression = this.config.getString("Potions.CrossMine.cross_size");
+		baseActivationExpression = this.config.getString("Potions.CrossMine.activation_chance");
+	}
+	
 	
 	
 	@EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -76,19 +88,48 @@ public class CrossMine extends PotionHandler {
 		EnchantInfo enchantment = hasCE(player);
 		
 		if (enchantment != null && enchantment.getHandler().getName().equalsIgnoreCase("CrossMine")) {
-			if (canBreak(player, block)) {
-				process(player, block, enchantment.getLevel());
+			if (canBreakWG(player, block))
+			{
+				double activationChance = 0.0;
+				try {
+					activationChance = (double) engine.eval(baseActivationExpression.replace("${level}", "("+enchantment.getLevel()+")").replace("${max_level}", "("+enchantment.getMax()+")"));
+				} catch (Exception e) {
+					console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Parsing of the activation_chance expression failed! ("+ChatColor.RED + e.toString() + ChatColor.DARK_RED+")");
+					return;
+				}
+				
+				if (activationChance >= 0 && activationChance <= 1) {
+					if (random.nextDouble() < activationChance) {
+						process(player, block, enchantment);
+					}
+				} else {
+					console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - activation_chance expression did not result in a valid value! ("+ChatColor.RED + activationChance + ChatColor.DARK_RED+")");
+					return;
+				}
 			}
 		}
 	}
 	
 	
-	private void process(Player player, Block block, int level) {
+	private void process(Player player, Block block, EnchantInfo enchantment) {
+		int size = 0;
 		
-		Block[] scheduledBlocks = new Block[level*6];
-		Block[] candidateBlocks = new Block[level*6];
+		try {
+			size = (int) engine.eval(baseSizeExpression.replace("${level}", "("+enchantment.getLevel()+")").replace("${max_level}", "("+enchantment.getMax()+")"));
+		} catch (Exception e) {
+			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Parsing of the cross_size expression failed! ("+ChatColor.RED + e.toString() + ChatColor.DARK_RED+")");
+			return;
+		}
 		
-		for (int i = 0; i < level; i++) {
+		if (size < 0) {
+			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - cross_size expression did not result in a valid value! ("+ChatColor.RED + size + ChatColor.DARK_RED+")");
+			return;
+		}
+		
+		Block[] scheduledBlocks = new Block[size*6];
+		Block[] candidateBlocks = new Block[size*6];
+		
+		for (int i = 0; i < size; i++) {
 			candidateBlocks[i*6]   = block.getRelative((i+1), 0, 0);
 			candidateBlocks[i*6+1] = block.getRelative(-(i+1), 0, 0);
 			candidateBlocks[i*6+2] = block.getRelative(0, (i+1), 0);
@@ -98,7 +139,7 @@ public class CrossMine extends PotionHandler {
 		}
 		
 		int scheduledCount = 0;
-		boolean[] results = batchCanBreak(player, candidateBlocks);
+		boolean[] results = batchCanBreakWG(player, candidateBlocks);
 		for (int i = 0; i < results.length; i++) {
 			if (results[i]) {
 				scheduledBlocks[scheduledCount] = candidateBlocks[i];
@@ -123,14 +164,14 @@ public class CrossMine extends PotionHandler {
 	
 	
 	
-	public boolean canBreak(Player player, Block block) {
+	private boolean canBreakWG(Player player, Block block) {
 		LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
 		RegionQuery query = container.createQuery();
 		
 		return query.testState(BukkitAdapter.adapt(block.getLocation()), localPlayer, Flags.BUILD);
 	}
 	
-	public boolean[] batchCanBreak(Player player, Block[] blocks) {
+	private boolean[] batchCanBreakWG(Player player, Block[] blocks) {
 		LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
 		RegionQuery query = container.createQuery();
 		

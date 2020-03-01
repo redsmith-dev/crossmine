@@ -6,5 +6,6 @@ Drops from blocks broken by the plugin are directly added to the Player's invent
 
 ### Configuration
 + Place the jar in the enchants folder and the default config file will be written to disk if one does not exist yet.
-+ Stop the server and edit all configurations if you want to. Each level will add a block to the length of the 3D cross.
-+ Next time around TokenEnchant will see the config file for CrossMine.
++ Stop the server and edit all configurations if you want to.
++ Cross size and activation chance are dictated by the expression you specify (javascript syntax)
++ On the next load TokenEnchant will see the config file for CrossMine.
