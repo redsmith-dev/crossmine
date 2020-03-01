@@ -5,8 +5,10 @@ import java.nio.file.Files;
 import java.util.Random;
 import java.util.function.Consumer;
 
+import javax.script.Invocable;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -57,10 +59,11 @@ public class CrossMine extends PotionHandler {
 	
     ScriptEngineManager mgr = new ScriptEngineManager();
     ScriptEngine engine = mgr.getEngineByName("JavaScript");
-    String baseSizeExpression, baseActivationExpression;
+	Invocable engineInvocable;
 	
     
-    File configFile = new File("plugins"+File.separator+"TokenEnchant"+File.separator+"enchants"+File.separator+"CrossMine_config.yml");
+    File configFile    = new File("plugins"+File.separator+"TokenEnchant"+File.separator+"enchants"+File.separator+"CrossMine_config.yml");
+    File functionsFile = new File("plugins"+File.separator+"TokenEnchant"+File.separator+"enchants"+File.separator+"CrossMine_functions.js");
 	
 	private void checkConfig() {
 		if (!configFile.exists()) {
@@ -72,10 +75,23 @@ public class CrossMine extends PotionHandler {
 				console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Failed to write default config file! ("+ChatColor.RED + e.toString() + ChatColor.DARK_RED+")");
 			}
 		}
+		if (!functionsFile.exists()) {
+			try {
+				Files.copy(getClass().getResourceAsStream("functions.js"), functionsFile.toPath());
+				console.sendMessage(ChatColor.GREEN+"[CrossMine] - Wrote default CrossMine_functions.js");
+			} catch (Exception e) {
+				console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Failed to write default functions file! ("+ChatColor.RED + e.toString() + ChatColor.DARK_RED+")");
+			}
+		}
 	}
 	private void loadConfigValues() {
-		baseSizeExpression = this.config.getString("Potions.CrossMine.cross_size");
-		baseActivationExpression = this.config.getString("Potions.CrossMine.activation_chance");
+		try {
+			String functionsString = new String(Files.readAllBytes(functionsFile.toPath()));
+			engine.eval(functionsString);
+			engineInvocable = (Invocable) engine;
+		} catch (Exception e) {
+			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Failed to read functions file! ("+ChatColor.RED + e.toString() + ChatColor.DARK_RED+")");
+		}
 	}
 	
 	
@@ -91,10 +107,12 @@ public class CrossMine extends PotionHandler {
 			if (canBreakWG(player, block))
 			{
 				double activationChance = 0.0;
+				
 				try {
-					activationChance = (double) engine.eval(baseActivationExpression.replace("${level}", "("+enchantment.getLevel()+")").replace("${max_level}", "("+enchantment.getMax()+")"));
+					activationChance = (double) engineInvocable.invokeFunction("activation_chance", enchantment.getLevel(), enchantment.getMax());
 				} catch (Exception e) {
-					console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Parsing of the activation_chance expression failed! ("+ChatColor.RED + e.toString() + ChatColor.DARK_RED+")");
+					console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Failed while invoking activation_chance function!");
+					console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Exception: "+ChatColor.RED + e.toString());
 					return;
 				}
 				
@@ -115,9 +133,16 @@ public class CrossMine extends PotionHandler {
 		int size = 0;
 		
 		try {
-			size = (int) engine.eval(baseSizeExpression.replace("${level}", "("+enchantment.getLevel()+")").replace("${max_level}", "("+enchantment.getMax()+")"));
+			Object result = engineInvocable.invokeFunction("cross_size", enchantment.getLevel(), enchantment.getMax());
+			
+			if (result instanceof Double) {
+				size = (int)Math.round(((double)result));
+			}else if (result instanceof Integer) {
+				size = (int)result;
+			}
 		} catch (Exception e) {
-			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Parsing of the cross_size expression failed! ("+ChatColor.RED + e.toString() + ChatColor.DARK_RED+")");
+			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Parsing of the cross_size expression failed!");
+			console.sendMessage(ChatColor.DARK_RED+"[CrossMine] - Exception: "+ChatColor.RED + e.toString());
 			return;
 		}
 		
