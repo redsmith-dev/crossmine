@@ -9,3 +9,6 @@ Drops from blocks broken by the plugin are directly added to the Player's invent
 + Stop the server and edit all configurations if you want to.
 + Cross size and activation chance are dictated by the expression you specify (javascript syntax)
 + On the next load TokenEnchant will see the config file for CrossMine.
+
+### Download
+Visit releases at: https://github.com/redsmith-dev/crossmine/releases
